@@ -1920,7 +1920,7 @@ function ValidateDSSMember() {
             Write-Host "*******************************************" -Foreground Red
             Write-Host "             WARNINGS SUMMARY" -Foreground Red
             Write-Host "*******************************************" -Foreground Red
-            Write-Host $errorSummary.ToString() -Foreground Red
+            Write-Host (RemoveDoubleEmptyLines $script:errorSummary.ToString()) -Foreground Red
             Write-Host
         }
         else {
