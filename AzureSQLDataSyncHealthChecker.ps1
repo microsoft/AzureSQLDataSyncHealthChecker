@@ -645,8 +645,8 @@ function ValidateBulkType([String] $bulkType, $columns) {
                 [void]$sbCol.Append("- [" + $column.name + "] " + $column.param)
 
                 if ($column.type -ne $typeColumn.Datatype) {
-                    if ($column.type -ne 'geography') {
-                        [void]$sbCol.Append('  Type(' + $column.type + '):Expected ')
+                    if ($column.type -eq 'geography') {
+                        [void]$sbCol.Append('  Type(' + $column.type + '):Expected diff ')
                     }
                     else {
                         [void]$sbCol.Append('  Type(' + $column.type + '):NOK ')
