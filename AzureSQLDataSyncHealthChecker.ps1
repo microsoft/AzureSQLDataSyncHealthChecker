@@ -644,7 +644,7 @@ function ValidateBulkType([String] $bulkType, $columns) {
 
                 [void]$sbCol.Append("- [" + $column.name + "] " + $column.param)
 
-                if ($column.type -ne $typeColumn.Datatype) {
+                if (($column.type -ne $typeColumn.Datatype) -and ($column.type -ne 'geography')) {
                     [void]$sbCol.Append('  Type(' + $column.type + '):NOK ')
                     $msg = "WARNING: " + $bulkType + ".[" + $column.name + "] has a different datatype! (type:" + $typeColumn.Datatype + " VS scope:" + $column.type + ")"
                     Write-Host $msg -Foreground Red
