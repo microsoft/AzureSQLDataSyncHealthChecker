@@ -645,10 +645,15 @@ function ValidateBulkType([String] $bulkType, $columns) {
                 [void]$sbCol.Append("- [" + $column.name + "] " + $column.param)
 
                 if ($column.type -ne $typeColumn.Datatype) {
-                    [void]$sbCol.Append('  Type(' + $column.type + '):NOK ')
-                    $msg = "WARNING: " + $bulkType + ".[" + $column.name + "] has a different datatype! (type:" + $typeColumn.Datatype + " VS scope:" + $column.type + ")"
-                    Write-Host $msg -Foreground Red
-                    [void]$errorSummary.AppendLine($msg)
+                    if ($column.type -eq 'geography' -or $column.type -eq 'geometry') {
+                        [void]$sbCol.Append('  Type(' + $column.type + '):Expected diff ')
+                    }
+                    else {
+                        [void]$sbCol.Append('  Type(' + $column.type + '):NOK ')
+                        $msg = "WARNING: " + $bulkType + ".[" + $column.name + "] has a different datatype! (type:" + $typeColumn.Datatype + " VS scope:" + $column.type + ")"
+                        Write-Host $msg -Foreground Red
+                        [void]$errorSummary.AppendLine($msg)
+                    }
                 }
                 else {
                     [void]$sbCol.Append('  Type(' + $column.type + '):OK ')
@@ -1112,9 +1117,9 @@ function GetUIHistory {
         ,CAST (ui.detailStringParameters as XML).value('(/ArrayOfString//string/node())[3]', 'nvarchar(max)') as Download
         ,'' as DownloadFailed
         ,'' as Error
-        FROM [dss].[UIHistory] AS ui
-        INNER JOIN [dss].[syncgroup] AS sg on ui.syncgroupId = sg.id
-        INNER JOIN [dss].[userdatabase] AS ud on ui.databaseid = ud.id
+        FROM [dss].[UIHistory] AS ui WITH (NOLOCK)
+        INNER JOIN [dss].[syncgroup] AS sg WITH (NOLOCK) on ui.syncgroupId = sg.id
+        INNER JOIN [dss].[userdatabase] AS ud WITH (NOLOCK) on ui.databaseid = ud.id
         WHERE ui.[detailEnumId] = 'SyncSuccess' AND ud.[server] = '" + $Server + "' AND ud.[database] = '" + $Database + "'
         UNION ALL
         SELECT ui.[completionTime], sg.[name] SyncGroupName, ud.[database] DatabaseName, ui.[detailEnumId] OperationResult
@@ -1124,9 +1129,9 @@ function GetUIHistory {
         ,CAST (ui.detailStringParameters as XML).value('(/ArrayOfString//string/node())[4]', 'nvarchar(max)') as Download
         ,CAST (ui.detailStringParameters as XML).value('(/ArrayOfString//string/node())[5]', 'nvarchar(max)') as DownloadFailed
         ,'' as Error
-        FROM [dss].[UIHistory] AS ui
-        INNER JOIN [dss].[syncgroup] AS sg on ui.syncgroupId = sg.id
-        INNER JOIN [dss].[userdatabase] AS ud on ui.databaseid = ud.id
+        FROM [dss].[UIHistory] AS ui WITH (NOLOCK)
+        INNER JOIN [dss].[syncgroup] AS sg WITH (NOLOCK) on ui.syncgroupId = sg.id
+        INNER JOIN [dss].[userdatabase] AS ud WITH (NOLOCK) on ui.databaseid = ud.id
         WHERE ui.[detailEnumId] = 'SyncSuccessWithWarning' AND ud.[server] = '" + $Server + "' AND ud.[database] = '" + $Database + "'
         UNION ALL
         SELECT ui.[completionTime], sg.[name] SyncGroupName, ud.[database] DatabaseName, ui.[detailEnumId] OperationResult
@@ -1136,9 +1141,9 @@ function GetUIHistory {
         ,'' as Download
         ,'' as DownloadFailed
         ,CAST (ui.detailStringParameters as XML).value('(/ArrayOfString//string/node())[1]', 'nvarchar(max)') as Error
-        FROM [dss].[UIHistory] AS ui
-        INNER JOIN [dss].[syncgroup] AS sg on ui.syncgroupId = sg.id
-        INNER JOIN [dss].[userdatabase] AS ud on ui.databaseid = ud.id
+        FROM [dss].[UIHistory] AS ui WITH (NOLOCK)
+        INNER JOIN [dss].[syncgroup] AS sg WITH (NOLOCK) on ui.syncgroupId = sg.id
+        INNER JOIN [dss].[userdatabase] AS ud WITH (NOLOCK) on ui.databaseid = ud.id
         WHERE ui.[detailEnumId] like '%Failure' AND ud.[server] = '" + $Server + "' AND ud.[database] = '" + $Database + "'
         UNION ALL
         SELECT ui.[completionTime], sg.[name] SyncGroupName, ud.[database] DatabaseName, ui.[detailEnumId] OperationResult
@@ -1148,9 +1153,9 @@ function GetUIHistory {
         ,'' as Download
         ,'' as DownloadFailed
         ,'' as Error
-        FROM [dss].[UIHistory] AS ui
-        INNER JOIN [dss].[syncgroup] AS sg on ui.syncgroupId = sg.id
-        INNER JOIN [dss].[userdatabase] AS ud on ui.databaseid = ud.id
+        FROM [dss].[UIHistory] AS ui WITH (NOLOCK)
+        INNER JOIN [dss].[syncgroup] AS sg WITH (NOLOCK) on ui.syncgroupId = sg.id
+        INNER JOIN [dss].[userdatabase] AS ud WITH (NOLOCK) on ui.databaseid = ud.id
         WHERE ui.[detailEnumId] != 'SyncSuccess' AND ui.[detailEnumId] != 'SyncSuccessWithWarning' AND ui.[detailEnumId] NOT LIKE '%Failure'
         AND ud.[server] = '" + $Server + "' AND ud.[database] = '" + $Database + "')
         SELECT TOP(30) [completionTime],SyncGroupName,OperationResult,Seconds,Upload,UploadFailed AS UpFailed,Download,DownloadFailed AS DFailed,Error
@@ -1179,6 +1184,77 @@ function GetUIHistory {
     }
 }
 
+function GetUIHistoryForSyncDBValidator {
+    Try {
+        $query = "WITH UIHistory_CTE ([completionTime], SyncGroupName,DatabaseName,OperationResult,Seconds,Upload,UploadFailed,Download,DownloadFailed, Error)
+        AS
+        (
+        SELECT ui.[completionTime], sg.[name] SyncGroupName, ud.[database] DatabaseName, ui.[detailEnumId] OperationResult
+        ,CAST (ui.detailStringParameters as XML).value('(/ArrayOfString//string/node())[1]', 'nvarchar(max)') as Seconds
+        ,CAST (ui.detailStringParameters as XML).value('(/ArrayOfString//string/node())[2]', 'nvarchar(max)') as Upload
+        ,'' as UploadFailed
+        ,CAST (ui.detailStringParameters as XML).value('(/ArrayOfString//string/node())[3]', 'nvarchar(max)') as Download
+        ,'' as DownloadFailed
+        ,'' as Error
+        FROM [dss].[UIHistory] AS ui WITH (NOLOCK)
+        INNER JOIN [dss].[syncgroup] AS sg WITH (NOLOCK) on ui.syncgroupId = sg.id
+        INNER JOIN [dss].[userdatabase] AS ud WITH (NOLOCK) on ui.databaseid = ud.id
+        WHERE ui.[detailEnumId] = 'SyncSuccess'
+        UNION ALL
+        SELECT ui.[completionTime], sg.[name] SyncGroupName, ud.[database] DatabaseName, ui.[detailEnumId] OperationResult
+        ,CAST (ui.detailStringParameters as XML).value('(/ArrayOfString//string/node())[1]', 'nvarchar(max)') as Seconds
+        ,CAST (ui.detailStringParameters as XML).value('(/ArrayOfString//string/node())[2]', 'nvarchar(max)') as Upload
+        ,CAST (ui.detailStringParameters as XML).value('(/ArrayOfString//string/node())[3]', 'nvarchar(max)') as UploadFailed
+        ,CAST (ui.detailStringParameters as XML).value('(/ArrayOfString//string/node())[4]', 'nvarchar(max)') as Download
+        ,CAST (ui.detailStringParameters as XML).value('(/ArrayOfString//string/node())[5]', 'nvarchar(max)') as DownloadFailed
+        ,'' as Error
+        FROM [dss].[UIHistory] AS ui WITH (NOLOCK)
+        INNER JOIN [dss].[syncgroup] AS sg WITH (NOLOCK) on ui.syncgroupId = sg.id
+        INNER JOIN [dss].[userdatabase] AS ud WITH (NOLOCK) on ui.databaseid = ud.id
+        WHERE ui.[detailEnumId] = 'SyncSuccessWithWarning'
+        UNION ALL
+        SELECT ui.[completionTime], sg.[name] SyncGroupName, ud.[database] DatabaseName, ui.[detailEnumId] OperationResult
+        ,'' as Seconds
+        ,'' as Upload
+        ,'' as UploadFailed
+        ,'' as Download
+        ,'' as DownloadFailed
+        ,CAST (ui.detailStringParameters as XML).value('(/ArrayOfString//string/node())[1]', 'nvarchar(max)') as Error
+        FROM [dss].[UIHistory] AS ui WITH (NOLOCK)
+        INNER JOIN [dss].[syncgroup] AS sg WITH (NOLOCK) on ui.syncgroupId = sg.id
+        INNER JOIN [dss].[userdatabase] AS ud WITH (NOLOCK) on ui.databaseid = ud.id
+        WHERE ui.[detailEnumId] like '%Failure'
+        UNION ALL
+        SELECT ui.[completionTime], sg.[name] SyncGroupName, ud.[database] DatabaseName, ui.[detailEnumId] OperationResult
+        ,'' as Seconds
+        ,'' as Upload
+        ,'' as UploadFailed
+        ,'' as Download
+        ,'' as DownloadFailed
+        ,'' as Error
+        FROM [dss].[UIHistory] AS ui WITH (NOLOCK)
+        INNER JOIN [dss].[syncgroup] AS sg WITH (NOLOCK) on ui.syncgroupId = sg.id
+        INNER JOIN [dss].[userdatabase] AS ud WITH (NOLOCK) on ui.databaseid = ud.id
+        WHERE ui.[detailEnumId] != 'SyncSuccess' AND ui.[detailEnumId] != 'SyncSuccessWithWarning' AND ui.[detailEnumId] NOT LIKE '%Failure')
+        SELECT TOP(50) [completionTime],SyncGroupName,OperationResult,Seconds,Upload,UploadFailed AS UpFailed,Download,DownloadFailed AS DFailed,Error
+        FROM UIHistory_CTE ORDER BY [completionTime] DESC"
+
+        $SyncDbCommand.CommandText = $query
+        $result = $SyncDbCommand.ExecuteReader()
+        $datatable = new-object 'System.Data.DataTable'
+        $datatable.Load($result)
+
+        if ($datatable.Rows.Count -gt 0) {
+            Write-Host "UI History:" -Foreground White
+            $datatable | Format-Table -AutoSize -Wrap | Out-String -Width 4096
+        }
+    }
+    Catch {
+        Write-Host GetUIHistoryForSyncDBValidator exception:
+        Write-Host $_.Exception.Message -ForegroundColor Red
+    }
+}
+
 function SendAnonymousUsageData {
     Try {
         #Despite computername and username will be used to calculate a hash string, this will keep you anonymous but allow us to identify multiple runs from the same user
@@ -1196,7 +1272,7 @@ function SendAnonymousUsageData {
             | Add-Member -PassThru NoteProperty baseType 'EventData' `
             | Add-Member -PassThru NoteProperty baseData (New-Object PSObject `
                 | Add-Member -PassThru NoteProperty ver 2 `
-                | Add-Member -PassThru NoteProperty name '6.9' `
+                | Add-Member -PassThru NoteProperty name '6.10' `
                 | Add-Member -PassThru NoteProperty properties (New-Object PSObject `
                     | Add-Member -PassThru NoteProperty 'Source:' "Microsoft/AzureSQLDataSyncHealthChecker"`
                     | Add-Member -PassThru NoteProperty 'HealthChecksEnabled' $HealthChecksEnabled.ToString()`
@@ -1448,6 +1524,8 @@ ORDER BY sg.[name]"
         $SyncDbMembersDataTableC.Load($SyncDbMembersResult)
         Write-Host $SyncDbMembersDataTableC.rows.Count sync agents
         $SyncDbMembersDataTableC.Rows | Format-Table -Wrap -AutoSize | Out-String -Width 4096
+        Write-Host
+        GetUIHistoryForSyncDBValidator
     }
     Catch {
         Write-Host ValidateSyncDB exception:
@@ -1557,9 +1635,11 @@ function GetIndexes($table) {
         $datatable = new-object 'System.Data.DataTable'
         $datatable.Load($result)
         if ($datatable.Rows.Count -gt 0) {
+            Write-Host
             $msg = "Indexes for " + $table + ":"
             Write-Host $msg -Foreground Green
             $datatable | Format-Table -Wrap -AutoSize | Out-String -Width 4096
+            Write-Host
         }
     }
     Catch {
@@ -1604,13 +1684,42 @@ function GetConstraints($table) {
         $datatable = new-object 'System.Data.DataTable'
         $datatable.Load($result)
         if ($datatable.Rows.Count -gt 0) {
+            Write-Host
             $msg = "Constraints for " + $table + ":"
             Write-Host $msg -Foreground Green
             $datatable | Format-Table -Wrap -AutoSize | Out-String -Width 4096
+            Write-Host
         }
     }
     Catch {
         Write-Host GetConstraints exception:
+        Write-Host $_.Exception.Message -ForegroundColor Red
+    }
+}
+
+function GetCustomerTriggers($table) {
+    Try {
+        $query = "SELECT tr.name AS TriggerName, tr.is_disabled AS 'Disabled'
+        FROM sys.triggers tr
+        INNER JOIN sys.tables t ON tr.parent_id = t.object_id
+        INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+		where '['+ SCHEMA_NAME(t.schema_id) +'].['+ t.name+']'  = '" + $table + "'
+		AND tr.[name] not like '%_dss_%'"
+
+        $MemberCommand.CommandText = $query
+        $result = $MemberCommand.ExecuteReader()
+        $datatable = new-object 'System.Data.DataTable'
+        $datatable.Load($result)
+        if ($datatable.Rows.Count -gt 0) {
+            Write-Host
+            $msg = "Customer triggers for " + $table + ":"
+            Write-Host $msg -Foreground Green
+            $datatable | Format-Table -Wrap -AutoSize | Out-String -Width 4096
+            Write-Host
+        }
+    }
+    Catch {
+        Write-Host GetCustomerTriggers exception:
         Write-Host $_.Exception.Message -ForegroundColor Red
     }
 }
@@ -1870,6 +1979,7 @@ function ValidateDSSMember() {
                         ## Indexes
                         GetIndexes $table.Name
                         GetConstraints $table.Name
+                        GetCustomerTriggers $table.Name
                     }
 
                     #Constraints
@@ -1915,7 +2025,7 @@ function ValidateDSSMember() {
             Write-Host "*******************************************" -Foreground Red
             Write-Host "             WARNINGS SUMMARY" -Foreground Red
             Write-Host "*******************************************" -Foreground Red
-            Write-Host $errorSummary.ToString() -Foreground Red
+            Write-Host (RemoveDoubleEmptyLines $errorSummary.ToString()) -Foreground Red
             Write-Host
         }
         else {
@@ -2179,7 +2289,7 @@ Try {
 
     Try {
         Write-Host ************************************************************ -ForegroundColor Green
-        Write-Host "  Azure SQL Data Sync Health Checker v6.9 Results" -ForegroundColor Green
+        Write-Host "  Azure SQL Data Sync Health Checker v6.10 Results" -ForegroundColor Green
         Write-Host ************************************************************ -ForegroundColor Green
         Write-Host
         Write-Host "Configuration:" -ForegroundColor Green
