@@ -1272,7 +1272,7 @@ function SendAnonymousUsageData {
             | Add-Member -PassThru NoteProperty baseType 'EventData' `
             | Add-Member -PassThru NoteProperty baseData (New-Object PSObject `
                 | Add-Member -PassThru NoteProperty ver 2 `
-                | Add-Member -PassThru NoteProperty name '6.10' `
+                | Add-Member -PassThru NoteProperty name '6.11' `
                 | Add-Member -PassThru NoteProperty properties (New-Object PSObject `
                     | Add-Member -PassThru NoteProperty 'Source:' "Microsoft/AzureSQLDataSyncHealthChecker"`
                     | Add-Member -PassThru NoteProperty 'HealthChecksEnabled' $HealthChecksEnabled.ToString()`
@@ -1467,7 +1467,7 @@ function ValidateSyncDB {
             Write-Host $msg -Foreground Red
         }
 
-        $query = "select count(*) as 'Count' from sys.symmetric_keys where name like 'DataSyncEncryptionKey%'"
+        $query = "select [name] AS DataSyncEncryptionKeys from sys.symmetric_keys where name like 'DataSyncEncryptionKey%'"
         $SyncDbCommand.CommandText = $query
         $result = $SyncDbCommand.ExecuteReader()
         $datatable = new-object 'System.Data.DataTable'
@@ -1475,14 +1475,16 @@ function ValidateSyncDB {
 
         $keyCount = $datatable.Rows
         if ($keyCount.Count -gt 0) {
-            Write-Host $keyCount.Count "DataSyncEncryptionKey found" -Foreground White
+            Write-Host
+            Write-Host $datatable.rows.Count DataSyncEncryptionKeys
+            $datatable.Rows | Format-Table -Wrap -AutoSize | Out-String -Width 4096
         }
         else {
             $msg = "WARNING: no DataSyncEncryptionKeys were found!"
             Write-Host $msg -Foreground Red
         }
 
-        $query = "select count(*) as 'Count' from sys.certificates where name like 'DataSyncEncryptionCertificate%'"
+        $query = "select [name] as 'DataSyncEncryptionCertificates' from sys.certificates where name like 'DataSyncEncryptionCertificate%'"
         $SyncDbCommand.CommandText = $query
         $result = $SyncDbCommand.ExecuteReader()
         $datatable = new-object 'System.Data.DataTable'
@@ -1490,21 +1492,23 @@ function ValidateSyncDB {
 
         $keyCount = $datatable.Rows
         if ($keyCount.Count -gt 0) {
-            Write-Host $keyCount.Count "DataSyncEncryptionCertificate found" -Foreground White
+            Write-Host
+            Write-Host $datatable.rows.Count DataSyncEncryptionCertificates
+            $datatable.Rows | Format-Table -Wrap -AutoSize | Out-String -Width 4096
         }
         else {
             $msg = "WARNING: no DataSyncEncryptionCertificates were found!"
             Write-Host $msg -Foreground Red
         }
 
-        $SyncDbCommand.CommandText = "SELECT sg.[name] AS SyncGroup,  ud.[database]  + ' at ' + ud.[server] AS [Database]
+        $SyncDbCommand.CommandText = "SELECT sg.id, sg.[name] AS SyncGroup,  ud.[database]  + ' at ' + ud.[server] AS [Database]
 FROM [dss].[syncgroup] as sg
 INNER JOIN [dss].[userdatabase] as ud on sg.hub_memberid = ud.id
 ORDER BY sg.[name]"
         $SyncDbMembersResult = $SyncDbCommand.ExecuteReader()
         $SyncDbMembersDataTableA = new-object 'System.Data.DataTable'
         $SyncDbMembersDataTableA.Load($SyncDbMembersResult)
-        Write-Host $SyncDbMembersDataTableA.rows.Count sync groups
+        Write-Host $SyncDbMembersDataTableA.rows.Count Sync Groups
         $SyncDbMembersDataTableA.Rows | Format-Table -Wrap -AutoSize | Out-String -Width 4096
 
         $SyncDbCommand.CommandText = "SELECT sg.[name] AS SyncGroup, sgm.[name] AS Member,  ud.[database]  + ' at ' + ud.[server] AS [Database]
@@ -1515,14 +1519,14 @@ ORDER BY sg.[name]"
         $SyncDbMembersResult = $SyncDbCommand.ExecuteReader()
         $SyncDbMembersDataTableB = new-object 'System.Data.DataTable'
         $SyncDbMembersDataTableB.Load($SyncDbMembersResult)
-        Write-Host $SyncDbMembersDataTableB.rows.Count sync group members
+        Write-Host $SyncDbMembersDataTableB.rows.Count Sync Group Members
         $SyncDbMembersDataTableB.Rows | Format-Table -Wrap -AutoSize | Out-String -Width 4096
 
-        $SyncDbCommand.CommandText = "SELECT [name] as SyncAgents FROM [dss].[agent]"
+        $SyncDbCommand.CommandText = "SELECT [id], [name], [lastalivetime], [version] FROM [dss].[agent]"
         $SyncDbMembersResult = $SyncDbCommand.ExecuteReader()
         $SyncDbMembersDataTableC = new-object 'System.Data.DataTable'
         $SyncDbMembersDataTableC.Load($SyncDbMembersResult)
-        Write-Host $SyncDbMembersDataTableC.rows.Count sync agents
+        Write-Host $SyncDbMembersDataTableC.rows.Count Sync Agents
         $SyncDbMembersDataTableC.Rows | Format-Table -Wrap -AutoSize | Out-String -Width 4096
         Write-Host
         GetUIHistoryForSyncDBValidator
@@ -2289,7 +2293,7 @@ Try {
 
     Try {
         Write-Host ************************************************************ -ForegroundColor Green
-        Write-Host "  Azure SQL Data Sync Health Checker v6.10 Results" -ForegroundColor Green
+        Write-Host "  Azure SQL Data Sync Health Checker v6.11 Results" -ForegroundColor Green
         Write-Host ************************************************************ -ForegroundColor Green
         Write-Host
         Write-Host "Configuration:" -ForegroundColor Green
@@ -2364,6 +2368,12 @@ Try {
             Write-Host
             ValidateDSSMember
         }
+        Catch {
+            Write-Host "An error occurred:"
+            Write-Host $_.Exception
+            Write-Host $_.ErrorDetails
+            Write-Host $_.ScriptStackTrace
+        }
         Finally {
             Try {
                 if ($canWriteFiles) {
@@ -2394,6 +2404,12 @@ Try {
             Write-Host
             ValidateDSSMember
         }
+        Catch {
+            Write-Host "An error occurred:"
+            Write-Host $_.Exception
+            Write-Host $_.ErrorDetails
+            Write-Host $_.ScriptStackTrace
+        }
         Finally {
             Try {
                 if ($canWriteFiles) {
@@ -2414,6 +2430,12 @@ Try {
                 Write-Host '..TranscriptStart..'
             }
             Monitor
+        }
+        Catch {
+            Write-Host "An error occurred:"
+            Write-Host $_.Exception
+            Write-Host $_.ErrorDetails
+            Write-Host $_.ScriptStackTrace
         }
         Finally {
             Try {
