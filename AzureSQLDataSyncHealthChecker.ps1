@@ -240,6 +240,7 @@ function ValidateTablesVSLocalSchema([Array] $userTables) {
 
 function ShowRowCountAndFragmentation([Array] $userTables) {
     Try {
+        $previousMemberCommandTimeout = $MemberCommand.CommandTimeout
         $tablesList = New-Object System.Collections.ArrayList
 
         foreach ($item in $userTables) {
@@ -265,6 +266,7 @@ function ShowRowCountAndFragmentation([Array] $userTables) {
         GROUP BY t.Name, s.Name, p.Rows
         ORDER BY '['+s.name+'].['+ t.name+']'"
 
+        $MemberCommand.CommandTimeout = 180
         $MemberCommand.CommandText = $query
         $result = $MemberCommand.ExecuteReader()
         $datatable = new-object 'System.Data.DataTable'
@@ -300,6 +302,9 @@ function ShowRowCountAndFragmentation([Array] $userTables) {
     Catch {
         Write-Host ShowRowCountAndFragmentation exception:
         Write-Host $_.Exception.Message -ForegroundColor Red
+    }
+    Finally {
+        $MemberCommand.CommandTimeout = $previousMemberCommandTimeout
     }
 }
 
@@ -1161,6 +1166,7 @@ function GetUIHistory {
         SELECT TOP(30) [completionTime],SyncGroupName,OperationResult,Seconds,Upload,UploadFailed AS UpFailed,Download,DownloadFailed AS DFailed,Error
         FROM UIHistory_CTE ORDER BY [completionTime] DESC"
 
+        $SyncDbCommand.CommandTimeout = 120
         $SyncDbCommand.CommandText = $query
         $result = $SyncDbCommand.ExecuteReader()
         $datatable = new-object 'System.Data.DataTable'
@@ -1239,6 +1245,7 @@ function GetUIHistoryForSyncDBValidator {
         SELECT TOP(50) [completionTime],SyncGroupName,OperationResult,Seconds,Upload,UploadFailed AS UpFailed,Download,DownloadFailed AS DFailed,Error
         FROM UIHistory_CTE ORDER BY [completionTime] DESC"
 
+        $SyncDbCommand.CommandTimeout = 120
         $SyncDbCommand.CommandText = $query
         $result = $SyncDbCommand.ExecuteReader()
         $datatable = new-object 'System.Data.DataTable'
@@ -1272,7 +1279,7 @@ function SendAnonymousUsageData {
             | Add-Member -PassThru NoteProperty baseType 'EventData' `
             | Add-Member -PassThru NoteProperty baseData (New-Object PSObject `
                 | Add-Member -PassThru NoteProperty ver 2 `
-                | Add-Member -PassThru NoteProperty name '6.11' `
+                | Add-Member -PassThru NoteProperty name '6.12' `
                 | Add-Member -PassThru NoteProperty properties (New-Object PSObject `
                     | Add-Member -PassThru NoteProperty 'Source:' "Microsoft/AzureSQLDataSyncHealthChecker"`
                     | Add-Member -PassThru NoteProperty 'HealthChecksEnabled' $HealthChecksEnabled.ToString()`
@@ -2293,7 +2300,7 @@ Try {
 
     Try {
         Write-Host ************************************************************ -ForegroundColor Green
-        Write-Host "  Azure SQL Data Sync Health Checker v6.11 Results" -ForegroundColor Green
+        Write-Host "  Azure SQL Data Sync Health Checker v6.12 Results" -ForegroundColor Green
         Write-Host ************************************************************ -ForegroundColor Green
         Write-Host
         Write-Host "Configuration:" -ForegroundColor Green
