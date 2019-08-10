@@ -34,9 +34,9 @@ $MemberUseWindowsAuthentication = $false
 $HealthChecksEnabled = $true  #Set as $true (default) or $false
 
 ## Monitoring
-$MonitoringMode = 'AUTO'  #Set as AUTO (default), ENABLED or DISABLED
+$MonitoringMode = 'ENABLED'  #Set as AUTO (default), ENABLED or DISABLED
 $MonitoringIntervalInSeconds = 20
-$MonitoringDurationInMinutes = 2
+$MonitoringDurationInMinutes = 1
 
 ## Tracking Record Validations
 $ExtendedValidationsTableFilter = @('All')  #Set as "All" or the tables you need using '[dbo].[TableName1]','[dbo].[TableName2]'
@@ -1279,7 +1279,7 @@ function SendAnonymousUsageData {
             | Add-Member -PassThru NoteProperty baseType 'EventData' `
             | Add-Member -PassThru NoteProperty baseData (New-Object PSObject `
                 | Add-Member -PassThru NoteProperty ver 2 `
-                | Add-Member -PassThru NoteProperty name '6.12' `
+                | Add-Member -PassThru NoteProperty name '6.13' `
                 | Add-Member -PassThru NoteProperty properties (New-Object PSObject `
                     | Add-Member -PassThru NoteProperty 'Source:' "Microsoft/AzureSQLDataSyncHealthChecker"`
                     | Add-Member -PassThru NoteProperty 'HealthChecksEnabled' $HealthChecksEnabled.ToString()`
@@ -1328,6 +1328,7 @@ function ValidateSyncDB {
         else {
             $msg = "WARNING: dss schema IS MISSING!"
             Write-Host $msg -Foreground Red
+            [void]$errorSummaryForSyncDB.AppendLine($msg)
         }
 
         if (($datatable.Rows | Where-Object { $_.name -eq "TaskHosting" } | Measure-Object).Count -gt 0) {
@@ -1336,6 +1337,7 @@ function ValidateSyncDB {
         else {
             $msg = "WARNING: TaskHosting schema IS MISSING!"
             Write-Host $msg -Foreground Red
+            [void]$errorSummaryForSyncDB.AppendLine($msg)
         }
 
         $query = "select schema_name(schema_id) as [name], count(*) as 'Count' from sys.tables
@@ -1353,6 +1355,7 @@ function ValidateSyncDB {
         else {
             $msg = "WARNING: dss tables are MISSING!"
             Write-Host $msg -Foreground Red
+            [void]$errorSummaryForSyncDB.AppendLine($msg)
         }
 
         $spCount = $datatable.Rows | Where-Object { $_.name -eq "TaskHosting" }
@@ -1362,6 +1365,7 @@ function ValidateSyncDB {
         else {
             $msg = "WARNING: TaskHosting tables are MISSING!"
             Write-Host $msg -Foreground Red
+            [void]$errorSummaryForSyncDB.AppendLine($msg)
         }
 
         $query = "select schema_name(schema_id) as [name], count(*) as 'Count' from sys.procedures
@@ -1379,6 +1383,7 @@ function ValidateSyncDB {
         else {
             $msg = "WARNING: dss stored procedures are MISSING!"
             Write-Host $msg -Foreground Red
+            [void]$errorSummaryForSyncDB.AppendLine($msg)
         }
 
         $spCount = $datatable.Rows | Where-Object { $_.name -eq "TaskHosting" }
@@ -1388,6 +1393,7 @@ function ValidateSyncDB {
         else {
             $msg = "WARNING: TaskHosting stored procedures are MISSING!"
             Write-Host $msg -Foreground Red
+            [void]$errorSummaryForSyncDB.AppendLine($msg)
         }
 
         $query = "select schema_name(schema_id) as [name], count(*) as 'Count'
@@ -1405,6 +1411,7 @@ function ValidateSyncDB {
         else {
             $msg = "WARNING: dss types are MISSING!"
             Write-Host $msg -Foreground Red
+            [void]$errorSummaryForSyncDB.AppendLine($msg)
         }
 
         $spCount = $datatable.Rows | Where-Object { $_.name -eq "TaskHosting" }
@@ -1414,6 +1421,7 @@ function ValidateSyncDB {
         else {
             $msg = "WARNING: TaskHosting types are MISSING!"
             Write-Host $msg -Foreground Red
+            [void]$errorSummaryForSyncDB.AppendLine($msg)
         }
 
         $query = "select schema_name(schema_id) as [name], count(*) as 'Count'
@@ -1433,6 +1441,7 @@ function ValidateSyncDB {
         else {
             $msg = "WARNING: dss functions are MISSING!"
             Write-Host $msg -Foreground Red
+            [void]$errorSummaryForSyncDB.AppendLine($msg)
         }
 
         $spCount = $datatable.Rows | Where-Object { $_.name -eq "TaskHosting" }
@@ -1442,6 +1451,7 @@ function ValidateSyncDB {
         else {
             $msg = "WARNING: TaskHosting functions are MISSING!"
             Write-Host $msg -Foreground Red
+            [void]$errorSummaryForSyncDB.AppendLine($msg)
         }
 
         $query = "select name from sys.sysusers where name in ('##MS_SyncAccount##','DataSync_reader','DataSync_executor','DataSync_admin')"
@@ -1454,24 +1464,28 @@ function ValidateSyncDB {
         else {
             $msg = "WARNING: ##MS_SyncAccount## IS MISSING!"
             Write-Host $msg -Foreground Red
+            [void]$errorSummaryForSyncDB.AppendLine($msg)
         }
 
         if (($datatable.Rows | Where-Object { $_.name -eq "DataSync_reader" } | Measure-Object).Count -gt 0) { Write-Host "DataSync_reader exists" -Foreground White }
         else {
             $msg = "WARNING: DataSync_reader IS MISSING!"
             Write-Host $msg -Foreground Red
+            [void]$errorSummaryForSyncDB.AppendLine($msg)
         }
 
         if (($datatable.Rows | Where-Object { $_.name -eq "DataSync_executor" } | Measure-Object).Count -gt 0) { Write-Host "DataSync_executor exists" -Foreground White }
         else {
             $msg = "WARNING: DataSync_executor IS MISSING!"
             Write-Host $msg -Foreground Red
+            [void]$errorSummaryForSyncDB.AppendLine($msg)
         }
 
         if (($datatable.Rows | Where-Object { $_.name -eq "DataSync_admin" } | Measure-Object).Count -gt 0) { Write-Host "DataSync_admin exists" -Foreground White }
         else {
             $msg = "WARNING: DataSync_admin IS MISSING!"
             Write-Host $msg -Foreground Red
+            [void]$errorSummaryForSyncDB.AppendLine($msg)
         }
 
         $query = "select [name] AS DataSyncEncryptionKeys from sys.symmetric_keys where name like 'DataSyncEncryptionKey%'"
@@ -1489,6 +1503,7 @@ function ValidateSyncDB {
         else {
             $msg = "WARNING: no DataSyncEncryptionKeys were found!"
             Write-Host $msg -Foreground Red
+            [void]$errorSummaryForSyncDB.AppendLine($msg)
         }
 
         $query = "select [name] as 'DataSyncEncryptionCertificates' from sys.certificates where name like 'DataSyncEncryptionCertificate%'"
@@ -1506,6 +1521,7 @@ function ValidateSyncDB {
         else {
             $msg = "WARNING: no DataSyncEncryptionCertificates were found!"
             Write-Host $msg -Foreground Red
+            [void]$errorSummaryForSyncDB.AppendLine($msg)
         }
 
         $SyncDbCommand.CommandText = "SELECT sg.id, sg.[name] AS SyncGroup,  ud.[database]  + ' at ' + ud.[server] AS [Database]
@@ -1513,10 +1529,10 @@ FROM [dss].[syncgroup] as sg
 INNER JOIN [dss].[userdatabase] as ud on sg.hub_memberid = ud.id
 ORDER BY sg.[name]"
         $SyncDbMembersResult = $SyncDbCommand.ExecuteReader()
-        $SyncDbMembersDataTableA = new-object 'System.Data.DataTable'
-        $SyncDbMembersDataTableA.Load($SyncDbMembersResult)
-        Write-Host $SyncDbMembersDataTableA.rows.Count Sync Groups
-        $SyncDbMembersDataTableA.Rows | Format-Table -Wrap -AutoSize | Out-String -Width 4096
+        $SyncDbMembersDataTableGroups = new-object 'System.Data.DataTable'
+        $SyncDbMembersDataTableGroups.Load($SyncDbMembersResult)
+        Write-Host $SyncDbMembersDataTableGroups.rows.Count Sync Groups
+        $SyncDbMembersDataTableGroups.Rows | Format-Table -Wrap -AutoSize | Out-String -Width 4096
 
         $SyncDbCommand.CommandText = "SELECT sg.[name] AS SyncGroup, sgm.[name] AS Member,  ud.[database]  + ' at ' + ud.[server] AS [Database]
 FROM [dss].[syncgroupmember] sgm
@@ -1524,17 +1540,56 @@ INNER JOIN [dss].[syncgroup] sg ON sg.id = sgm.syncgroupid
 INNER JOIN [dss].[userdatabase] as ud on sgm.databaseid = ud.id
 ORDER BY sg.[name]"
         $SyncDbMembersResult = $SyncDbCommand.ExecuteReader()
-        $SyncDbMembersDataTableB = new-object 'System.Data.DataTable'
-        $SyncDbMembersDataTableB.Load($SyncDbMembersResult)
-        Write-Host $SyncDbMembersDataTableB.rows.Count Sync Group Members
-        $SyncDbMembersDataTableB.Rows | Format-Table -Wrap -AutoSize | Out-String -Width 4096
+        $SyncDbMembersDataTableMembers = new-object 'System.Data.DataTable'
+        $SyncDbMembersDataTableMembers.Load($SyncDbMembersResult)
+        Write-Host $SyncDbMembersDataTableMembers.rows.Count Sync Group Members
+        $SyncDbMembersDataTableMembers.Rows | Format-Table -Wrap -AutoSize | Out-String -Width 4096
 
         $SyncDbCommand.CommandText = "SELECT [id], [name], [lastalivetime], [version] FROM [dss].[agent]"
         $SyncDbMembersResult = $SyncDbCommand.ExecuteReader()
-        $SyncDbMembersDataTableC = new-object 'System.Data.DataTable'
-        $SyncDbMembersDataTableC.Load($SyncDbMembersResult)
-        Write-Host $SyncDbMembersDataTableC.rows.Count Sync Agents
-        $SyncDbMembersDataTableC.Rows | Format-Table -Wrap -AutoSize | Out-String -Width 4096
+        $SyncDbMembersDataTableAgents = new-object 'System.Data.DataTable'
+        $SyncDbMembersDataTableAgents.Load($SyncDbMembersResult)
+        Write-Host $SyncDbMembersDataTableAgents.rows.Count Sync Agents
+        $SyncDbMembersDataTableAgents.Rows | Format-Table -Wrap -AutoSize | Out-String -Width 4096
+        Write-Host
+
+        $SyncDbCommand.CommandText = "SELECT pr.name, pr.type_desc, pe.state_desc, pe.permission_name, class_desc
+        ,s.name as SchemaName, c.name as CertificateName, k.name as SymmetricKeyName
+        FROM sys.database_principals AS pr
+        JOIN sys.database_permissions AS pe ON pe.grantee_principal_id = pr.principal_id
+        LEFT OUTER JOIN sys.schemas AS s ON (pe.class = 3 and pe.major_id = s.schema_id)
+        LEFT OUTER JOIN sys.certificates AS c ON (pe.class = 25 and pe.major_id = c.certificate_id)
+        LEFT OUTER JOIN sys.symmetric_keys AS k ON (pe.class = 24 and pe.major_id = k.symmetric_key_id)
+        WHERE pr.[name] = '##MS_SyncAccount##' OR pr.[name] = 'DataSync_admin'
+        OR pr.[name] = 'DataSync_executor' OR pr.[name] = 'DataSync_reader'
+        ORDER by pe.class, pr.name"
+        $SyncDbMembersResult = $SyncDbCommand.ExecuteReader()
+        $SyncDbMembersDataTablePermissions = new-object 'System.Data.DataTable'
+        $SyncDbMembersDataTablePermissions.Load($SyncDbMembersResult)
+        Write-Host $SyncDbMembersDataTablePermissions.rows.Count Permissions
+        $SyncDbMembersDataTablePermissions.Rows | Format-Table -Wrap -AutoSize | Out-String -Width 4096
+        Write-Host
+
+        CheckSchemaPermission $SyncDbMembersDataTablePermissions "DataSync_admin" "CONTROL" "dss"
+        CheckSchemaPermission $SyncDbMembersDataTablePermissions "DataSync_admin" "CONTROL" "TaskHosting"
+
+        CheckSchemaPermission $SyncDbMembersDataTablePermissions "DataSync_executor" "EXECUTE" "dss"
+        CheckSchemaPermission $SyncDbMembersDataTablePermissions "DataSync_executor" "EXECUTE" "TaskHosting"
+        CheckSchemaPermission $SyncDbMembersDataTablePermissions "DataSync_executor" "SELECT" "dss"
+        CheckSchemaPermission $SyncDbMembersDataTablePermissions "DataSync_executor" "SELECT" "TaskHosting"
+
+        CheckSchemaPermission $SyncDbMembersDataTablePermissions "DataSync_reader" "SELECT" "dss"
+        CheckSchemaPermission $SyncDbMembersDataTablePermissions "DataSync_reader" "SELECT" "TaskHosting"
+
+        CheckDatabasePermission $SyncDbMembersDataTablePermissions "DataSync_admin" "CREATE FUNCTION"
+        CheckDatabasePermission $SyncDbMembersDataTablePermissions "DataSync_admin" "CREATE PROCEDURE"
+        CheckDatabasePermission $SyncDbMembersDataTablePermissions "DataSync_admin" "CREATE TABLE"
+        CheckDatabasePermission $SyncDbMembersDataTablePermissions "DataSync_admin" "CREATE TYPE"
+        CheckDatabasePermission $SyncDbMembersDataTablePermissions "DataSync_admin" "CREATE VIEW"
+        CheckDatabasePermission $SyncDbMembersDataTablePermissions "DataSync_admin" "VIEW DATABASE STATE"
+
+        CheckDatabasePermission $SyncDbMembersDataTablePermissions "##MS_SyncAccount##" "CONNECT"
+
         Write-Host
         GetUIHistoryForSyncDBValidator
     }
@@ -1547,6 +1602,28 @@ ORDER BY sg.[name]"
             Write-Host Closing connection to SyncDb...
             $SyncDbConnection.Close()
         }
+    }
+}
+
+function CheckSchemaPermission($permissionsTable, [String] $permissionUserName, [String] $permissionName, [String] $schemaName) {
+    if (($permissionsTable.Rows | Where-Object { $_.name -eq $permissionUserName -and $_.permission_name -eq $permissionName -and $_.class_desc -eq "SCHEMA" -and $_.SchemaName -eq $schemaName } | Measure-Object).Count -eq 0) {
+        $msg = "WARNING: $permissionUserName $permissionName on SCHEMA $schemaName IS MISSING!"
+        Write-Host $msg -Foreground Red
+        [void]$errorSummaryForSyncDB.AppendLine($msg)
+    }
+    else {
+        Write-Host $permissionUserName $permissionName on SCHEMA $schemaName "exists" -ForegroundColor Green
+    }
+}
+
+function CheckDatabasePermission($permissionsTable, [String] $permissionUserName, [String] $permissionName, [String] $schemaName) {
+    if (($permissionsTable.Rows | Where-Object { $_.name -eq $permissionUserName -and $_.permission_name -eq $permissionName -and $_.class_desc -eq "DATABASE" } | Measure-Object).Count -eq 0) {
+        $msg = "WARNING: $permissionUserName $permissionName on DATABASE IS MISSING!"
+        Write-Host $msg -Foreground Red
+        [void]$errorSummaryForSyncDB.AppendLine($msg)
+    }
+    else {
+        Write-Host $permissionUserName $permissionName on DATABASE "exists" -ForegroundColor Green
     }
 }
 
@@ -2268,6 +2345,7 @@ function RemoveDoubleEmptyLines([string]$text) {
 
 Try {
     Clear-Host
+    $errorSummaryForSyncDB = New-Object -TypeName "System.Text.StringBuilder"
     $errorSummaryForMember
     $errorSummaryForHub
     $canWriteFiles = $true
@@ -2300,7 +2378,7 @@ Try {
 
     Try {
         Write-Host ************************************************************ -ForegroundColor Green
-        Write-Host "  Azure SQL Data Sync Health Checker v6.12 Results" -ForegroundColor Green
+        Write-Host "  Azure SQL Data Sync Health Checker v6.13 Results" -ForegroundColor Green
         Write-Host ************************************************************ -ForegroundColor Green
         Write-Host
         Write-Host "Configuration:" -ForegroundColor Green
@@ -2461,6 +2539,18 @@ Try {
             Start-Transcript -Path $file
             Write-Host '..TranscriptStart..'
         }
+        if ($script:errorSummaryForSyncDB -and $script:errorSummaryForSyncDB.Length -gt 0) {
+            Write-Host
+            Write-Host "*********************************" -Foreground Red
+            Write-Host "   WARNINGS SUMMARY FOR SyncDB" -Foreground Red
+            Write-Host "*********************************" -Foreground Red
+            Write-Host (RemoveDoubleEmptyLines $script:errorSummaryForSyncDB.ToString()) -Foreground Red
+            Write-Host
+        }
+        else {
+            Write-Host
+            Write-Host "NO ERRORS DETECTED IN THE SyncDB!"
+        }
         if ($script:errorSummaryForHub -and $script:errorSummaryForHub.Length -gt 0) {
             Write-Host
             Write-Host "******************************" -Foreground Red
@@ -2484,6 +2574,7 @@ Try {
         else {
             Write-Host
             Write-Host "NO ERRORS DETECTED IN THE MEMBER!"
+            Write-Host
         }
     }
     Finally {
