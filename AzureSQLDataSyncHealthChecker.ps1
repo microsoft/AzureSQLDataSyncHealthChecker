@@ -34,7 +34,7 @@ $MemberUseWindowsAuthentication = $false
 $HealthChecksEnabled = $true  #Set as $true (default) or $false
 
 ## Monitoring
-$MonitoringMode = 'ENABLED'  #Set as AUTO (default), ENABLED or DISABLED
+$MonitoringMode = 'AUTO'  #Set as AUTO (default), ENABLED or DISABLED
 $MonitoringIntervalInSeconds = 20
 $MonitoringDurationInMinutes = 1
 
