@@ -707,6 +707,12 @@ function ValidateBulkType([String] $bulkType, $columns) {
             Write-Host $msg -Foreground Red
             [void]$errorSummary.AppendLine($msg)
         }
+
+        #DumpObject
+        $tableNameWithoutSchema = ($DumpMetadataObjectsForTable.Replace("[", "").Replace("]", "").Split('.'))[1] + '_dss_BulkType_'
+        if ($DumpMetadataObjectsForTable -and $bulkType -match $tableNameWithoutSchema -and $canWriteFiles) {
+            $table | Out-File -filepath ('.\' + (SanitizeString $Server) + '_' + (SanitizeString $Database) + '_' + (SanitizeString $bulkType) + '.txt')
+        }
     }
     Catch {
         Write-Host "Error at ValidateBulkType" $bulkType -Foreground Red
@@ -1279,7 +1285,7 @@ function SendAnonymousUsageData {
             | Add-Member -PassThru NoteProperty baseType 'EventData' `
             | Add-Member -PassThru NoteProperty baseData (New-Object PSObject `
                 | Add-Member -PassThru NoteProperty ver 2 `
-                | Add-Member -PassThru NoteProperty name '6.13' `
+                | Add-Member -PassThru NoteProperty name '6.14' `
                 | Add-Member -PassThru NoteProperty properties (New-Object PSObject `
                     | Add-Member -PassThru NoteProperty 'Source:' "Microsoft/AzureSQLDataSyncHealthChecker"`
                     | Add-Member -PassThru NoteProperty 'HealthChecksEnabled' $HealthChecksEnabled.ToString()`
@@ -2378,7 +2384,7 @@ Try {
 
     Try {
         Write-Host ************************************************************ -ForegroundColor Green
-        Write-Host "  Azure SQL Data Sync Health Checker v6.13 Results" -ForegroundColor Green
+        Write-Host "  Azure SQL Data Sync Health Checker v6.14 Results" -ForegroundColor Green
         Write-Host ************************************************************ -ForegroundColor Green
         Write-Host
         Write-Host "Configuration:" -ForegroundColor Green
