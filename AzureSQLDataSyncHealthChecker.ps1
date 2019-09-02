@@ -1285,7 +1285,7 @@ function SendAnonymousUsageData {
             | Add-Member -PassThru NoteProperty baseType 'EventData' `
             | Add-Member -PassThru NoteProperty baseData (New-Object PSObject `
                 | Add-Member -PassThru NoteProperty ver 2 `
-                | Add-Member -PassThru NoteProperty name '6.14' `
+                | Add-Member -PassThru NoteProperty name '6.15' `
                 | Add-Member -PassThru NoteProperty properties (New-Object PSObject `
                     | Add-Member -PassThru NoteProperty 'Source:' "Microsoft/AzureSQLDataSyncHealthChecker"`
                     | Add-Member -PassThru NoteProperty 'HealthChecksEnabled' $HealthChecksEnabled.ToString()`
@@ -2206,6 +2206,8 @@ function Monitor() {
             $FreePhysicalMemory = [math]::Round(($os.FreePhysicalMemory / 1024), 2)
             $FreeVirtualMemory = [math]::Round(($os.FreeVirtualMemory / 1024), 2)
             Write-Host "FreePhysicalMemory:" $FreePhysicalMemory "|" "FreeVirtualMemory:" $FreeVirtualMemory -ForegroundColor Yellow
+
+            Get-WMIObject Win32_Process -Filter "Name='DataSyncLocalAgentHost.exe' or Name='sqlservr.exe'" | Select Name,@{n="Private Memory(mb)";e={[math]::Round($_.PrivatePageCount/1mb,2)}} | Format-Table -AutoSize
         }
         Catch {
             Write-Host $_.Exception.Message -ForegroundColor Red
@@ -2384,7 +2386,7 @@ Try {
 
     Try {
         Write-Host ************************************************************ -ForegroundColor Green
-        Write-Host "  Azure SQL Data Sync Health Checker v6.14 Results" -ForegroundColor Green
+        Write-Host "  Azure SQL Data Sync Health Checker v6.15 Results" -ForegroundColor Green
         Write-Host ************************************************************ -ForegroundColor Green
         Write-Host
         Write-Host "Configuration:" -ForegroundColor Green
