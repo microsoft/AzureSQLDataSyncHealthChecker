@@ -1285,7 +1285,7 @@ function SendAnonymousUsageData {
             | Add-Member -PassThru NoteProperty baseType 'EventData' `
             | Add-Member -PassThru NoteProperty baseData (New-Object PSObject `
                 | Add-Member -PassThru NoteProperty ver 2 `
-                | Add-Member -PassThru NoteProperty name '6.15' `
+                | Add-Member -PassThru NoteProperty name '6.16' `
                 | Add-Member -PassThru NoteProperty properties (New-Object PSObject `
                     | Add-Member -PassThru NoteProperty 'Source:' "Microsoft/AzureSQLDataSyncHealthChecker"`
                     | Add-Member -PassThru NoteProperty 'HealthChecksEnabled' $HealthChecksEnabled.ToString()`
@@ -2386,7 +2386,7 @@ Try {
 
     Try {
         Write-Host ************************************************************ -ForegroundColor Green
-        Write-Host "  Azure SQL Data Sync Health Checker v6.15 Results" -ForegroundColor Green
+        Write-Host "  Azure SQL Data Sync Health Checker v6.16 Results" -ForegroundColor Green
         Write-Host ************************************************************ -ForegroundColor Green
         Write-Host
         Write-Host "Configuration:" -ForegroundColor Green
@@ -2479,7 +2479,7 @@ Try {
     }
 
     #Member
-    $Server = SanitizeServerName $MemberServer
+    $Server = $MemberServer
     $Database = $MemberDatabase
     $MbrUseWindowsAuthentication = $MemberUseWindowsAuthentication
     $MbrUser = $MemberUser
