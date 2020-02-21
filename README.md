@@ -46,8 +46,8 @@ $parameters = @{
 
     ## Tracking Record Validations
     ExtendedValidationsTableFilter = @('All')  #Set as "All" or the tables you need using '[dbo].[TableName1]','[dbo].[TableName2]'
-    ExtendedValidationsEnabledForHub = $false  #Set as $true or $false (default)
-    ExtendedValidationsEnabledForMember = $false  #Set as $true or $false (default)
+    ExtendedValidationsEnabledForHub = $true  #Set as $true (default) or $false
+    ExtendedValidationsEnabledForMember = $true  #Set as $true (default) or $false
     ExtendedValidationsCommandTimeout = 900 #seconds (default)
 
     ## Other
