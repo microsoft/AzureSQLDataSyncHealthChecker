@@ -40,8 +40,8 @@ $MonitoringDurationInMinutes = 1
 
 ## Tracking Record Validations
 $ExtendedValidationsTableFilter = @('All')  #Set as "All" or the tables you need using '[dbo].[TableName1]','[dbo].[TableName2]'
-$ExtendedValidationsEnabledForHub = $false  #Set as $true or $false (default)
-$ExtendedValidationsEnabledForMember = $false  #Set as $true or $false (default)
+$ExtendedValidationsEnabledForHub = $true  #Set as $true (default) or $false
+$ExtendedValidationsEnabledForMember = $true  #Set as $true (default) or $false
 $ExtendedValidationsCommandTimeout = 900 #seconds (default)
 
 ## Other
@@ -1285,7 +1285,7 @@ function SendAnonymousUsageData {
             | Add-Member -PassThru NoteProperty baseType 'EventData' `
             | Add-Member -PassThru NoteProperty baseData (New-Object PSObject `
                 | Add-Member -PassThru NoteProperty ver 2 `
-                | Add-Member -PassThru NoteProperty name '6.16' `
+                | Add-Member -PassThru NoteProperty name '6.17' `
                 | Add-Member -PassThru NoteProperty properties (New-Object PSObject `
                     | Add-Member -PassThru NoteProperty 'Source:' "Microsoft/AzureSQLDataSyncHealthChecker"`
                     | Add-Member -PassThru NoteProperty 'HealthChecksEnabled' $HealthChecksEnabled.ToString()`
@@ -2386,7 +2386,7 @@ Try {
 
     Try {
         Write-Host ************************************************************ -ForegroundColor Green
-        Write-Host "  Azure SQL Data Sync Health Checker v6.16 Results" -ForegroundColor Green
+        Write-Host "  Azure SQL Data Sync Health Checker v6.17 Results" -ForegroundColor Green
         Write-Host ************************************************************ -ForegroundColor Green
         Write-Host
         Write-Host "Configuration:" -ForegroundColor Green
