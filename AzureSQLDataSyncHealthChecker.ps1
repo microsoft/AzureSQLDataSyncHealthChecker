@@ -1285,7 +1285,7 @@ function SendAnonymousUsageData {
             | Add-Member -PassThru NoteProperty baseType 'EventData' `
             | Add-Member -PassThru NoteProperty baseData (New-Object PSObject `
                 | Add-Member -PassThru NoteProperty ver 2 `
-                | Add-Member -PassThru NoteProperty name '6.17' `
+                | Add-Member -PassThru NoteProperty name '6.18' `
                 | Add-Member -PassThru NoteProperty properties (New-Object PSObject `
                     | Add-Member -PassThru NoteProperty 'Source:' "Microsoft/AzureSQLDataSyncHealthChecker"`
                     | Add-Member -PassThru NoteProperty 'HealthChecksEnabled' $HealthChecksEnabled.ToString()`
@@ -1314,6 +1314,7 @@ function ValidateSyncDB {
             $SyncDbConnection.Open()
         }
         Catch {
+            Write-Host Error connecting to the database -ForegroundColor Red
             Write-Host $_.Exception.Message -ForegroundColor Red
             Test-NetConnection $SyncDbServer -Port 1433
             Break
@@ -1643,6 +1644,7 @@ function DumpMetadataSchemasForSyncGroup([String] $syncGoupName) {
             $SyncDbConnection.Open()
         }
         Catch {
+            Write-Host Error connecting to the database -ForegroundColor Red
             Write-Host $_.Exception.Message -ForegroundColor Red
             Test-NetConnection $SyncDbServer -Port 1433
             Break
@@ -1840,6 +1842,7 @@ function ValidateDSSMember() {
             $SyncDbConnection.Open()
         }
         Catch {
+            Write-Host Error connecting to the database -ForegroundColor Red
             Write-Host $_.Exception.Message -ForegroundColor Red
             Test-NetConnection $SyncDbServer -Port 1433
             Break
@@ -1944,14 +1947,8 @@ function ValidateDSSMember() {
 
         Write-Host
         Write-Host Connecting to $Server"/"$Database
-        Try {
-            $MemberConnection.Open()
-        }
-        Catch {
-            Write-Host $_.Exception.Message -ForegroundColor Red
-            Test-NetConnection $Server -Port 1433
-            Break
-        }
+        $MemberConnection.Open()
+
 
         $MemberCommand = New-Object System.Data.SQLClient.SQLCommand
         $MemberCommand.Connection = $MemberConnection
@@ -2126,14 +2123,14 @@ function ValidateDSSMember() {
             Write-Host
             Write-Host NO ERRORS DETECTED!
         }
+    }
+    Finally {
         if (($Server -eq $MemberServer) -and ($Database -eq $MemberDatabase)) {
             $script:errorSummaryForMember = $errorSummary
         }
         if (($Server -eq $HubServer) -and ($Database -eq $HubDatabase)) {
             $script:errorSummaryForHub = $errorSummary
         }
-    }
-    Finally {
         if ($SyncDbConnection) {
             Write-Host Closing connection to SyncDb...
             $SyncDbConnection.Close()
@@ -2163,6 +2160,7 @@ function Monitor() {
         $HubConnection.Open()
     }
     Catch {
+        Write-Host Error connecting to the database -ForegroundColor Red
         Write-Host $_.Exception.Message -ForegroundColor Red
         Test-NetConnection $HubServer -Port 1433
         Break
@@ -2184,6 +2182,7 @@ function Monitor() {
         $MemberConnection.Open()
     }
     Catch {
+        Write-Host Error connecting to the database -ForegroundColor Red
         Write-Host $_.Exception.Message -ForegroundColor Red
         Test-NetConnection $MemberServer -Port 1433
         Break
@@ -2207,7 +2206,7 @@ function Monitor() {
             $FreeVirtualMemory = [math]::Round(($os.FreeVirtualMemory / 1024), 2)
             Write-Host "FreePhysicalMemory:" $FreePhysicalMemory "|" "FreeVirtualMemory:" $FreeVirtualMemory -ForegroundColor Yellow
 
-            Get-WMIObject Win32_Process -Filter "Name='DataSyncLocalAgentHost.exe' or Name='sqlservr.exe'" | Select Name,@{n="Private Memory(mb)";e={[math]::Round($_.PrivatePageCount/1mb,2)}} | Format-Table -AutoSize
+            Get-WMIObject Win32_Process -Filter "Name='DataSyncLocalAgentHost.exe' or Name='sqlservr.exe'" | Select Name, @{n = "Private Memory(mb)"; e = { [math]::Round($_.PrivatePageCount / 1mb, 2) } } | Format-Table -AutoSize
         }
         Catch {
             Write-Host $_.Exception.Message -ForegroundColor Red
@@ -2386,7 +2385,7 @@ Try {
 
     Try {
         Write-Host ************************************************************ -ForegroundColor Green
-        Write-Host "  Azure SQL Data Sync Health Checker v6.17 Results" -ForegroundColor Green
+        Write-Host "  Azure SQL Data Sync Health Checker v6.18 Results" -ForegroundColor Green
         Write-Host ************************************************************ -ForegroundColor Green
         Write-Host
         Write-Host "Configuration:" -ForegroundColor Green
@@ -2418,18 +2417,41 @@ Try {
         }
 
         #SyncDB
-        if (($null -ne $SyncDbServer) -and ('' -ne $SyncDbServer) -and ($null -ne $SyncDbDatabase) -and ('' -ne $SyncDbDatabase)) {
+        if (($null -eq $SyncDbServer) -or ('' -eq $SyncDbServer)) {
             Write-Host
-            Write-Host ***************** Validating Sync Metadata Database ********************** -ForegroundColor Green
+            Write-Host 'WARNING:SyncDbServer was not specified, validations cannot continue without it.' -ForegroundColor Red
             Write-Host
-            $SyncDbServer = SanitizeServerName $SyncDbServer
-            ValidateSyncDB
-            if ($DumpMetadataSchemasForSyncGroup -ne '') {
-                DumpMetadataSchemasForSyncGroup $DumpMetadataSchemasForSyncGroup
-            }
+            exit
         }
-        else {
-            Write-Host 'WARNING:SyncDbServer or SyncDbDatabase was not specified' -ForegroundColor Red
+
+        if (($null -eq $SyncDbDatabase) -or ('' -eq $SyncDbDatabase)) {
+            Write-Host
+            Write-Host 'WARNING:SyncDbDatabase was not specified, validations cannot continue without it.' -ForegroundColor Red
+            Write-Host
+            exit
+        }
+
+        if (($null -eq $SyncDbUser) -or ('' -eq $SyncDbUser)) {
+            Write-Host
+            Write-Host 'WARNING:SyncDbUser was not specified, validations cannot continue without it.' -ForegroundColor Red
+            Write-Host
+            exit
+        }
+
+        if (($null -eq $SyncDbPassword) -or ('' -eq $SyncDbPassword)) {
+            Write-Host
+            Write-Host 'WARNING:SyncDbPassword was not specified, validations cannot continue without it.' -ForegroundColor Red
+            Write-Host
+            exit
+        }
+
+        Write-Host
+        Write-Host ***************** Validating Sync Metadata Database ********************** -ForegroundColor Green
+        Write-Host
+        $SyncDbServer = SanitizeServerName $SyncDbServer
+        ValidateSyncDB
+        if ($DumpMetadataSchemasForSyncGroup -ne '') {
+            DumpMetadataSchemasForSyncGroup $DumpMetadataSchemasForSyncGroup
         }
     }
     Finally {
@@ -2462,10 +2484,15 @@ Try {
             ValidateDSSMember
         }
         Catch {
-            Write-Host "An error occurred:"
-            Write-Host $_.Exception
-            Write-Host $_.ErrorDetails
-            Write-Host $_.ScriptStackTrace
+        $msg = "An unexpected error happened during the validation."
+        Write-Host $msg -Foreground Red
+        [void]$errorSummaryForHub.AppendLine($msg)
+        $msg = "Please check error below for more details. In case it is an Execution Timeout Expired issue please retry or check your database for performance problems like blocking."
+        Write-Host $msg -Foreground Red
+        [void]$errorSummaryForHub.AppendLine($msg)
+        $msg = "Error: " + $_.Exception.Message
+        Write-Host $msg -Foreground Yellow
+        [void]$errorSummaryForHub.AppendLine($msg)
         }
         Finally {
             Try {
@@ -2498,10 +2525,15 @@ Try {
             ValidateDSSMember
         }
         Catch {
-            Write-Host "An error occurred:"
-            Write-Host $_.Exception
-            Write-Host $_.ErrorDetails
-            Write-Host $_.ScriptStackTrace
+        $msg = "An unexpected error happened during the validation."
+        Write-Host $msg -Foreground Red
+        [void]$errorSummaryForMember.AppendLine($msg)
+        $msg = "Please check error below for more details. In case it is an Execution Timeout Expired issue please retry or check your database for performance problems like blocking."
+        Write-Host $msg -Foreground Red
+        [void]$errorSummaryForMember.AppendLine($msg)
+        $msg = "Error: " + $_.Exception.Message
+        Write-Host $msg -Foreground Yellow
+        [void]$errorSummaryForMember.AppendLine($msg)
         }
         Finally {
             Try {
