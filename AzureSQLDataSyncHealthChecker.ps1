@@ -133,6 +133,8 @@ if ($null -ne $parameters) {
 }
 #####################################################################################################
 
+$cmdTimeout = 300
+
 function ValidateTablesVSLocalSchema([Array] $userTables) {
     Try {
         if ($userTables.Count -eq 0) {
@@ -240,7 +242,6 @@ function ValidateTablesVSLocalSchema([Array] $userTables) {
 
 function ShowRowCountAndFragmentation([Array] $userTables) {
     Try {
-        $previousMemberCommandTimeout = $MemberCommand.CommandTimeout
         $tablesList = New-Object System.Collections.ArrayList
 
         foreach ($item in $userTables) {
@@ -266,7 +267,7 @@ function ShowRowCountAndFragmentation([Array] $userTables) {
         GROUP BY t.Name, s.Name, p.Rows
         ORDER BY '['+s.name+'].['+ t.name+']'"
 
-        $MemberCommand.CommandTimeout = 180
+        $MemberCommand.CommandTimeout = $cmdTimeout
         $MemberCommand.CommandText = $query
         $result = $MemberCommand.ExecuteReader()
         $datatable = new-object 'System.Data.DataTable'
@@ -302,9 +303,6 @@ function ShowRowCountAndFragmentation([Array] $userTables) {
     Catch {
         Write-Host ShowRowCountAndFragmentation exception:
         Write-Host $_.Exception.Message -ForegroundColor Red
-    }
-    Finally {
-        $MemberCommand.CommandTimeout = $previousMemberCommandTimeout
     }
 }
 
@@ -1285,7 +1283,7 @@ function SendAnonymousUsageData {
             | Add-Member -PassThru NoteProperty baseType 'EventData' `
             | Add-Member -PassThru NoteProperty baseData (New-Object PSObject `
                 | Add-Member -PassThru NoteProperty ver 2 `
-                | Add-Member -PassThru NoteProperty name '6.18' `
+                | Add-Member -PassThru NoteProperty name '6.19' `
                 | Add-Member -PassThru NoteProperty properties (New-Object PSObject `
                     | Add-Member -PassThru NoteProperty 'Source:' "Microsoft/AzureSQLDataSyncHealthChecker"`
                     | Add-Member -PassThru NoteProperty 'HealthChecksEnabled' $HealthChecksEnabled.ToString()`
@@ -1322,6 +1320,7 @@ function ValidateSyncDB {
 
         $SyncDbCommand = New-Object System.Data.SQLClient.SQLCommand
         $SyncDbCommand.Connection = $SyncDbConnection
+        $SyncDbCommand.CommandTimeout = $cmdTimeout
 
         $query = "select [name] from sys.schemas where name in ('dss','TaskHosting')"
         $SyncDbCommand.CommandText = $query
@@ -1530,8 +1529,9 @@ function ValidateSyncDB {
             Write-Host $msg -Foreground Red
             [void]$errorSummaryForSyncDB.AppendLine($msg)
         }
+        Write-Host
 
-        $SyncDbCommand.CommandText = "SELECT sg.id, sg.[name] AS SyncGroup,  ud.[database]  + ' at ' + ud.[server] AS [Database]
+        $SyncDbCommand.CommandText = "SELECT sg.id, sg.[name] AS SyncGroup,  ud.[database] AS [HubDatabase], ud.[server] AS [HubServer], sg.hub_memberid as DatabaseId
 FROM [dss].[syncgroup] as sg
 INNER JOIN [dss].[userdatabase] as ud on sg.hub_memberid = ud.id
 ORDER BY sg.[name]"
@@ -1540,8 +1540,9 @@ ORDER BY sg.[name]"
         $SyncDbMembersDataTableGroups.Load($SyncDbMembersResult)
         Write-Host $SyncDbMembersDataTableGroups.rows.Count Sync Groups
         $SyncDbMembersDataTableGroups.Rows | Format-Table -Wrap -AutoSize | Out-String -Width 4096
+        Write-Host
 
-        $SyncDbCommand.CommandText = "SELECT sg.[name] AS SyncGroup, sgm.[name] AS Member,  ud.[database]  + ' at ' + ud.[server] AS [Database]
+        $SyncDbCommand.CommandText = "SELECT sg.[name] AS SyncGroup, sgm.[name] AS Member,  ud.[database] AS [MemberDatabase], ud.[server] AS [MemberServer], ud.id as DatabaseId
 FROM [dss].[syncgroupmember] sgm
 INNER JOIN [dss].[syncgroup] sg ON sg.id = sgm.syncgroupid
 INNER JOIN [dss].[userdatabase] as ud on sgm.databaseid = ud.id
@@ -1551,6 +1552,15 @@ ORDER BY sg.[name]"
         $SyncDbMembersDataTableMembers.Load($SyncDbMembersResult)
         Write-Host $SyncDbMembersDataTableMembers.rows.Count Sync Group Members
         $SyncDbMembersDataTableMembers.Rows | Format-Table -Wrap -AutoSize | Out-String -Width 4096
+        Write-Host
+
+        $SyncDbCommand.CommandText = "SELECT [id],[server],[database],[state],[last_schema_updated],[last_tombstonecleanup] FROM [dss].[userdatabase]"
+        $SyncDbMembersResult = $SyncDbCommand.ExecuteReader()
+        $SyncDbMembersDataTableMembers = new-object 'System.Data.DataTable'
+        $SyncDbMembersDataTableMembers.Load($SyncDbMembersResult)
+        Write-Host $SyncDbMembersDataTableMembers.rows.Count Databases
+        $SyncDbMembersDataTableMembers.Rows | Format-Table -Wrap -AutoSize | Out-String -Width 4096
+        Write-Host
 
         $SyncDbCommand.CommandText = "SELECT [id], [name], [lastalivetime], [version] FROM [dss].[agent]"
         $SyncDbMembersResult = $SyncDbCommand.ExecuteReader()
@@ -1652,6 +1662,7 @@ function DumpMetadataSchemasForSyncGroup([String] $syncGoupName) {
 
         $SyncDbCommand = New-Object System.Data.SQLClient.SQLCommand
         $SyncDbCommand.Connection = $SyncDbConnection
+        $SyncDbCommand.CommandTimeout = $cmdTimeout
 
         $query = "SELECT [schema_description] FROM [dss].[syncgroup] WHERE [schema_description] IS NOT NULL AND [name] = '" + $syncGoupName + "'"
         $SyncDbCommand.CommandText = $query
@@ -1850,6 +1861,7 @@ function ValidateDSSMember() {
 
         $SyncDbCommand = New-Object System.Data.SQLClient.SQLCommand
         $SyncDbCommand.Connection = $SyncDbConnection
+        $SyncDbCommand.CommandTimeout = $cmdTimeout
 
         Write-Host Validating if $Server/$Database exist in SyncDB:
 
@@ -1859,8 +1871,19 @@ function ValidateDSSMember() {
         $SyncDbMembersDataTable.Load($SyncDbMembersResult)
 
         if ($SyncDbMembersDataTable.Rows[0].C -eq 0) {
-            Write-Host ERROR: $Server/$Database was not found in [dss].[userdatabase] -ForegroundColor Red
-            return;
+            $msg = $Server +"/" + $Database + " was not found in [dss].[userdatabase], please make sure you specify the server name and database name exactly like configured during sync setup."
+            Write-Host ERROR: $msg -ForegroundColor Red
+
+            $SyncDbCommand.CommandText = "SELECT [server],[database] FROM [dss].[userdatabase]"
+            $SyncDbMembersResult = $SyncDbCommand.ExecuteReader()
+            $SyncDbMembersDataTableMembers = new-object 'System.Data.DataTable'
+            $SyncDbMembersDataTableMembers.Load($SyncDbMembersResult)
+            Write-Host Server and Databases must be one of: -ForegroundColor Yellow
+            $SyncDbMembersDataTableMembers.Rows | Format-Table -Wrap -AutoSize | Out-String -Width 4096
+            Write-Host
+
+            Write-Error -Message $msg -ErrorAction Stop
+
         }
         else {
             Write-Host $Server/$Database was found in SyncDB -ForegroundColor Green
@@ -1952,6 +1975,7 @@ function ValidateDSSMember() {
 
         $MemberCommand = New-Object System.Data.SQLClient.SQLCommand
         $MemberCommand.Connection = $MemberConnection
+        $MemberCommand.CommandTimeout = $cmdTimeout
 
         Try {
             Write-Host
@@ -2154,6 +2178,7 @@ function Monitor() {
     $HubConnection.ConnectionString = [string]::Format("Server=tcp:{0},1433;Initial Catalog={1};Persist Security Info=False;User ID={2};Password={3};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;", $HubServer, $HubDatabase, $HubUser, $HubPassword)
     $HubCommand = New-Object System.Data.SQLClient.SQLCommand
     $HubCommand.Connection = $HubConnection
+    $HubCommand.CommandTimeout = $cmdTimeout
 
     Write-Host Connecting to Hub $HubServer"/"$HubDatabase
     Try {
@@ -2176,6 +2201,7 @@ function Monitor() {
 
     $MemberCommand = New-Object System.Data.SQLClient.SQLCommand
     $MemberCommand.Connection = $MemberConnection
+    $MemberCommand.CommandTimeout = $cmdTimeout
 
     Write-Host Connecting to Member $MemberServer"/"$MemberDatabase
     Try {
@@ -2385,7 +2411,7 @@ Try {
 
     Try {
         Write-Host ************************************************************ -ForegroundColor Green
-        Write-Host "  Azure SQL Data Sync Health Checker v6.18 Results" -ForegroundColor Green
+        Write-Host "  Azure SQL Data Sync Health Checker v6.19 Results" -ForegroundColor Green
         Write-Host ************************************************************ -ForegroundColor Green
         Write-Host
         Write-Host "Configuration:" -ForegroundColor Green
@@ -2487,9 +2513,6 @@ Try {
         $msg = "An unexpected error happened during the validation."
         Write-Host $msg -Foreground Red
         [void]$errorSummaryForHub.AppendLine($msg)
-        $msg = "Please check error below for more details. In case it is an Execution Timeout Expired issue please retry or check your database for performance problems like blocking."
-        Write-Host $msg -Foreground Red
-        [void]$errorSummaryForHub.AppendLine($msg)
         $msg = "Error: " + $_.Exception.Message
         Write-Host $msg -Foreground Yellow
         [void]$errorSummaryForHub.AppendLine($msg)
@@ -2526,9 +2549,6 @@ Try {
         }
         Catch {
         $msg = "An unexpected error happened during the validation."
-        Write-Host $msg -Foreground Red
-        [void]$errorSummaryForMember.AppendLine($msg)
-        $msg = "Please check error below for more details. In case it is an Execution Timeout Expired issue please retry or check your database for performance problems like blocking."
         Write-Host $msg -Foreground Red
         [void]$errorSummaryForMember.AppendLine($msg)
         $msg = "Error: " + $_.Exception.Message
