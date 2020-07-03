@@ -1179,12 +1179,44 @@ function GetUIHistory {
         if ($datatable.Rows.Count -gt 0) {
             Write-Host "UI History:" -Foreground White
             $datatable | Format-Table -AutoSize -Wrap | Out-String -Width 4096
+            
             $top = $datatable | Group-Object -Property SyncGroupName | ForEach-Object { $_ | Select-Object -ExpandProperty Group | Select-Object -First 1 }
             $shouldDump = $top | Where-Object { $_.OperationResult -like '*Failure*' }
             if ($null -ne $shouldDump -and $DumpMetadataSchemasForSyncGroup -eq '') {
                 foreach ($error in $shouldDump) {
                     DumpMetadataSchemasForSyncGroup $error.SyncGroupName
                 }
+            }
+
+            $refreshSchemaTimeouts = $datatable | Where-Object { $_.OperationResult -like 'SchemaRefreshFailure' -and $_.Error -like '*The wait operation timed out*' }
+            foreach ($refreshSchemaTimeout in $refreshSchemaTimeouts){
+                Write-Host
+                TrackWarningAnonymously 'DSS038'
+                $DSS038 = [System.Text.StringBuilder]::new()
+                [void]$DSS038.AppendLine( "ROOT CAUSE (DSS038):")
+                [void]$DSS038.AppendLine( " On " + $refreshSchemaTimeout.completionTime + " a Refresh Schema failed with 'The wait operation timed out'")
+                [void]$DSS038.AppendLine( " After fetching all the schema from the database, Data Sync saves this information in Sync Metadata Database.")
+                [void]$DSS038.AppendLine( " In case the performance tier of Sync Metadata Database is small or has heavy load, the operation may timeout when the database schema that needs to be saved is big/complex.")
+                [void]$DSS038.AppendLine( "MITIGATION:")
+                [void]$DSS038.AppendLine( " Please scale up the Sync Metadata Database. You may scale down once the data sync schema is set, you may need to scale back up if Refresh Schema is needed again.")
+                Write-Host $DSS038.ToString() -Foreground Red
+                [void]$errorSummary.AppendLine($DSS038.ToString())
+                Write-Host
+            }
+
+            $openDataReaderErrors = $datatable | Where-Object { $_.OperationResult -like 'SchemaRefreshFailure' -and $_.Error -like '*There is already an open DataReader associated with this Command which must be closed first*' }
+            foreach ($openDataReaderError in $openDataReaderErrors){
+                Write-Host
+                TrackWarningAnonymously 'DSS023'
+                $DSS023 = [System.Text.StringBuilder]::new()
+                [void]$DSS023.AppendLine( "ROOT CAUSE (DSS023):")
+                [void]$DSS023.AppendLine( " On " + $openDataReaderError.completionTime + " a Refresh Schema failed with 'There is already an open DataReader associated with this Command which must be closed first'")
+                [void]$DSS023.AppendLine( " This error is caused by triggering a new Refresh Schema operation while the previous one has not completed yet.")
+                [void]$DSS023.AppendLine( "MITIGATION:")
+                [void]$DSS023.AppendLine( " Please wait for the previous Refresh Schema operation to complete before triggering a new one.")
+                Write-Host $DSS023.ToString() -Foreground Red
+                [void]$errorSummary.AppendLine($DSS023.ToString())
+                Write-Host
             }
         }
     }
@@ -1283,7 +1315,7 @@ function SendAnonymousUsageData {
             | Add-Member -PassThru NoteProperty baseType 'EventData' `
             | Add-Member -PassThru NoteProperty baseData (New-Object PSObject `
                 | Add-Member -PassThru NoteProperty ver 2 `
-                | Add-Member -PassThru NoteProperty name '6.19' `
+                | Add-Member -PassThru NoteProperty name '6.21' `
                 | Add-Member -PassThru NoteProperty properties (New-Object PSObject `
                     | Add-Member -PassThru NoteProperty 'Source:' "Microsoft/AzureSQLDataSyncHealthChecker"`
                     | Add-Member -PassThru NoteProperty 'HealthChecksEnabled' $HealthChecksEnabled.ToString()`
@@ -1298,6 +1330,33 @@ function SendAnonymousUsageData {
     }
     Catch {
         Write-Host SendAnonymousUsageData exception:
+        Write-Host $_.Exception.Message -ForegroundColor Red
+    }
+}
+
+function TrackWarningAnonymously ([String] $warningCode) {
+    Try {
+        #Despite computername and username will be used to calculate a hash string, this will keep you anonymous but allow us to identify multiple runs from the same user
+        $StringBuilderHash = New-Object System.Text.StringBuilder
+        [System.Security.Cryptography.HashAlgorithm]::Create("MD5").ComputeHash([System.Text.Encoding]::UTF8.GetBytes($env:computername + $env:username)) | ForEach-Object {
+            [Void]$StringBuilderHash.Append($_.ToString("x2"))
+        }
+
+        $body = New-Object PSObject `
+        | Add-Member -PassThru NoteProperty name 'Microsoft.ApplicationInsights.Event' `
+        | Add-Member -PassThru NoteProperty time $([System.dateTime]::UtcNow.ToString('o')) `
+        | Add-Member -PassThru NoteProperty iKey "c8aa884b-5a60-4bec-b49e-702d69657409" `
+        | Add-Member -PassThru NoteProperty tags (New-Object PSObject | Add-Member -PassThru NoteProperty 'ai.user.id' $StringBuilderHash.ToString()) `
+        | Add-Member -PassThru NoteProperty data (New-Object PSObject `
+            | Add-Member -PassThru NoteProperty baseType 'EventData' `
+            | Add-Member -PassThru NoteProperty baseData (New-Object PSObject `
+                | Add-Member -PassThru NoteProperty ver 2 `
+                | Add-Member -PassThru NoteProperty name $warningCode));
+        $body = $body | ConvertTo-JSON -depth 5;
+        Invoke-WebRequest -Uri 'https://dc.services.visualstudio.com/v2/track' -Method 'POST' -UseBasicParsing -body $body > $null
+    }
+    Catch {
+        Write-Host TrackWarningAnonymously exception:
         Write-Host $_.Exception.Message -ForegroundColor Red
     }
 }
@@ -2411,7 +2470,7 @@ Try {
 
     Try {
         Write-Host ************************************************************ -ForegroundColor Green
-        Write-Host "  Azure SQL Data Sync Health Checker v6.19 Results" -ForegroundColor Green
+        Write-Host "  Azure SQL Data Sync Health Checker v6.21 Results" -ForegroundColor Green
         Write-Host ************************************************************ -ForegroundColor Green
         Write-Host
         Write-Host "Configuration:" -ForegroundColor Green
