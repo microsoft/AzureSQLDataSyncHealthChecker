@@ -1356,7 +1356,7 @@ function TrackWarningAnonymously ([String] $warningCode) {
         Invoke-WebRequest -Uri 'https://dc.services.visualstudio.com/v2/track' -Method 'POST' -UseBasicParsing -body $body > $null
     }
     Catch {
-        Write-Host SendAnonymousUsageData exception:
+        Write-Host TrackWarningAnonymously exception:
         Write-Host $_.Exception.Message -ForegroundColor Red
     }
 }
