@@ -1189,7 +1189,7 @@ function GetUIHistory {
             }
 
             $refreshSchemaTimeouts = $datatable | Where-Object { $_.OperationResult -like 'SchemaRefreshFailure' -and $_.Error -like '*The wait operation timed out*' }
-            foreach ($refreshSchemaTimeout in $refreshSchemaTimeouts){
+            foreach ($refreshSchemaTimeout in $refreshSchemaTimeouts) {
                 Write-Host
                 TrackWarningAnonymously 'DSS038'
                 $DSS038 = [System.Text.StringBuilder]::new()
@@ -1205,7 +1205,7 @@ function GetUIHistory {
             }
 
             $openDataReaderErrors = $datatable | Where-Object { $_.OperationResult -like 'SchemaRefreshFailure' -and $_.Error -like '*There is already an open DataReader associated with this Command which must be closed first*' }
-            foreach ($openDataReaderError in $openDataReaderErrors){
+            foreach ($openDataReaderError in $openDataReaderErrors) {
                 Write-Host
                 TrackWarningAnonymously 'DSS023'
                 $DSS023 = [System.Text.StringBuilder]::new()
@@ -1216,6 +1216,55 @@ function GetUIHistory {
                 [void]$DSS023.AppendLine( " Please wait for the previous Refresh Schema operation to complete before triggering a new one.")
                 Write-Host $DSS023.ToString() -Foreground Red
                 [void]$errorSummary.AppendLine($DSS023.ToString())
+                Write-Host
+            }
+
+            $incorrectSyntaxErrors = $datatable | Where-Object { $_.Error -like "*Incorrect syntax near 'MERGE'*" }
+            foreach ($incorrectSyntaxError in $incorrectSyntaxErrors) {
+                Write-Host
+                TrackWarningAnonymously 'DSS025'
+                $DSS025 = [System.Text.StringBuilder]::new()
+                [void]$DSS025.AppendLine( "ROOT CAUSE (DSS025):")
+                [void]$DSS025.AppendLine( " On " + $incorrectSyntaxError.completionTime + " there is a failed task with Incorrect syntax near 'MERGE'")
+                [void]$DSS025.AppendLine( " This error is usually caused by running under compatibility level <100")
+                [void]$DSS025.AppendLine( "MITIGATION:")
+                [void]$DSS025.AppendLine( " Please check the compatibility level using: SELECT compatibility level FROM sys.databases WHERE name = DB_NAME();")
+                [void]$DSS025.AppendLine( " In case you are running on <100, please consider updating using: ALTER DATABASE myDatabaseName SET COMPATIBILITY_LEVEL = 100")
+                Write-Host $DSS025.ToString() -Foreground Red
+                [void]$errorSummary.AppendLine($DSS025.ToString())
+                Write-Host
+            }
+
+            $incorrectSyntaxErrors = $datatable | Where-Object { $_.Error -like "*Incorrect syntax near the keyword 'AS'*" }
+            foreach ($incorrectSyntaxError in $incorrectSyntaxErrors) {
+                Write-Host
+                TrackWarningAnonymously 'DSS025'
+                $DSS025 = [System.Text.StringBuilder]::new()
+                [void]$DSS025.AppendLine( "ROOT CAUSE (DSS025):")
+                [void]$DSS025.AppendLine( " On " + $incorrectSyntaxError.completionTime + " there is a failed task with Incorrect syntax near the keyword 'AS'")
+                [void]$DSS025.AppendLine( " This error is usually caused by running under compatibility level <100")
+                [void]$DSS025.AppendLine( "MITIGATION:")
+                [void]$DSS025.AppendLine( " Please check the compatibility level using: SELECT compatibility level FROM sys.databases WHERE name = DB_NAME();")
+                [void]$DSS025.AppendLine( " In case you are running on <100, please consider updating using: ALTER DATABASE myDatabaseName SET COMPATIBILITY_LEVEL = 100")
+                Write-Host $DSS025.ToString() -Foreground Red
+                [void]$errorSummary.AppendLine($DSS025.ToString())
+                Write-Host
+            }
+
+            $incorrectSyntaxErrors = $datatable | Where-Object { $_.Error -like "*Incorrect syntax near the keyword 'NOT'*" }
+            foreach ($incorrectSyntaxError in $incorrectSyntaxErrors) {
+                Write-Host
+                TrackWarningAnonymously 'DSS039'
+                $DSS039 = [System.Text.StringBuilder]::new()
+                [void]$DSS039.AppendLine( "ROOT CAUSE (DSS039):")
+                [void]$DSS039.AppendLine( " On " + $incorrectSyntaxError.completionTime + " there is a failed task with Incorrect syntax near the keyword 'NOT'")
+                [void]$DSS039.AppendLine( " SQL Data Sync provides basic database auto-provisioning when the table does not exist in the database, but this has some limitations.")
+                [void]$DSS039.AppendLine( " The issue is being caused by a lack of default value in some column(s) during auto-provisioning.")
+                [void]$DSS039.AppendLine( "MITIGATION:")
+                [void]$DSS039.AppendLine( " Please provision the database schema manually.")
+                [void]$DSS039.AppendLine( " This is usually done by extracting the schema from the source and creating it manually in the destination.")
+                Write-Host $DSS039.ToString() -Foreground Red
+                [void]$errorSummary.AppendLine($DSS039.ToString())
                 Write-Host
             }
         }
@@ -1315,7 +1364,7 @@ function SendAnonymousUsageData {
             | Add-Member -PassThru NoteProperty baseType 'EventData' `
             | Add-Member -PassThru NoteProperty baseData (New-Object PSObject `
                 | Add-Member -PassThru NoteProperty ver 2 `
-                | Add-Member -PassThru NoteProperty name '6.21' `
+                | Add-Member -PassThru NoteProperty name '6.22' `
                 | Add-Member -PassThru NoteProperty properties (New-Object PSObject `
                     | Add-Member -PassThru NoteProperty 'Source:' "Microsoft/AzureSQLDataSyncHealthChecker"`
                     | Add-Member -PassThru NoteProperty 'HealthChecksEnabled' $HealthChecksEnabled.ToString()`
@@ -2470,7 +2519,7 @@ Try {
 
     Try {
         Write-Host ************************************************************ -ForegroundColor Green
-        Write-Host "  Azure SQL Data Sync Health Checker v6.21 Results" -ForegroundColor Green
+        Write-Host "  Azure SQL Data Sync Health Checker v6.22 Results" -ForegroundColor Green
         Write-Host ************************************************************ -ForegroundColor Green
         Write-Host
         Write-Host "Configuration:" -ForegroundColor Green
