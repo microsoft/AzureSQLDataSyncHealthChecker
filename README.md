@@ -57,7 +57,18 @@ $parameters = @{
 }
  
 $scriptUrlBase = 'https://raw.githubusercontent.com/Microsoft/AzureSQLDataSyncHealthChecker/master'
-Invoke-Command -ScriptBlock ([Scriptblock]::Create((iwr ($scriptUrlBase+'/AzureSQLDataSyncHealthChecker.ps1')).Content)) -ArgumentList $parameters
+cls
+Write-Host 'Trying to download the script file from GitHub (https://github.com/Microsoft/AzureSQLDataSyncHealthChecker), please wait...'
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls
+    Invoke-Command -ScriptBlock ([Scriptblock]::Create((Invoke-WebRequest ($scriptUrlBase +'/AzureSQLDataSyncHealthChecker.ps1') -UseBasicParsing -TimeoutSec 60).Content)) -ArgumentList $parameters
+    }
+catch {
+    Write-Host 'ERROR: The script file could not be downloaded:' -ForegroundColor Red
+    $_.Exception
+    Write-Host 'Confirm this machine can access https://github.com/Microsoft/AzureSQLDataSyncHealthChecker/' -ForegroundColor Yellow
+    Write-Host 'or use a machine with Internet access to see how to run this from machines without Internet. See how at https://github.com/Azure/SQL-Connectivity-Checker/' -ForegroundColor Yellow
+}
 #end
 ```
 4. Set the parameters on the script, you need to set server names, database names, users and passwords.
