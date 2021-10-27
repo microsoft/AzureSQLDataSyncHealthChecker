@@ -84,15 +84,14 @@ if ($null -ne $parameters) {
     }
 
     ## Monitoring
-    $MonitoringMode = 'AUTO'  #Set as AUTO, ENABLED or DISABLED
     if ($null -ne $parameters['MonitoringMode']) {
         $MonitoringMode = $parameters['MonitoringMode']
     }
-    $MonitoringIntervalInSeconds = 20
+
     if ($null -ne $parameters['MonitoringIntervalInSeconds']) {
         $MonitoringIntervalInSeconds = $parameters['MonitoringIntervalInSeconds']
     }
-    $MonitoringDurationInMinutes = 2
+
     if ($null -ne $parameters['MonitoringDurationInMinutes']) {
         $MonitoringDurationInMinutes = $parameters['MonitoringDurationInMinutes']
     }
@@ -104,29 +103,28 @@ if ($null -ne $parameters) {
     if ($null -ne $parameters['ExtendedValidationsTableFilter']) {
         $ExtendedValidationsTableFilter = $parameters['ExtendedValidationsTableFilter']
     }
-    $ExtendedValidationsEnabledForHub = $false  #Attention, this may cause high I/O impact
+
     if ($null -ne $parameters['ExtendedValidationsEnabledForHub']) {
         $ExtendedValidationsEnabledForHub = $parameters['ExtendedValidationsEnabledForHub']
     }
-    $ExtendedValidationsEnabledForMember = $false  #Attention, this may cause high I/O impact
+
     if ($null -ne $parameters['ExtendedValidationsEnabledForMember']) {
         $ExtendedValidationsEnabledForMember = $parameters['ExtendedValidationsEnabledForMember']
     }
-    $ExtendedValidationsCommandTimeout = 900 #seconds
+
     if ($null -ne $parameters['ExtendedValidationsCommandTimeout']) {
         $ExtendedValidationsCommandTimeout = $parameters['ExtendedValidationsCommandTimeout']
     }
 
     ## Other
-    $SendAnonymousUsageData = $true
     if ($null -ne $parameters['SendAnonymousUsageData']) {
         $SendAnonymousUsageData = $parameters['SendAnonymousUsageData']
     }
-    $DumpMetadataSchemasForSyncGroup = '' #leave empty for automatic detection
+
     if ($null -ne $parameters['DumpMetadataSchemasForSyncGroup']) {
         $DumpMetadataSchemasForSyncGroup = $parameters['DumpMetadataSchemasForSyncGroup']
     }
-    $DumpMetadataObjectsForTable = '' #needs to be formatted like [SchemaName].[TableName]
+
     if ($null -ne $parameters['DumpMetadataObjectsForTable']) {
         $DumpMetadataObjectsForTable = $parameters['DumpMetadataObjectsForTable']
     }
@@ -1364,7 +1362,7 @@ function SendAnonymousUsageData {
             | Add-Member -PassThru NoteProperty baseType 'EventData' `
             | Add-Member -PassThru NoteProperty baseData (New-Object PSObject `
                 | Add-Member -PassThru NoteProperty ver 2 `
-                | Add-Member -PassThru NoteProperty name '6.22' `
+                | Add-Member -PassThru NoteProperty name '6.23' `
                 | Add-Member -PassThru NoteProperty properties (New-Object PSObject `
                     | Add-Member -PassThru NoteProperty 'Source:' "Microsoft/AzureSQLDataSyncHealthChecker"`
                     | Add-Member -PassThru NoteProperty 'HealthChecksEnabled' $HealthChecksEnabled.ToString()`
@@ -2519,7 +2517,7 @@ Try {
 
     Try {
         Write-Host ************************************************************ -ForegroundColor Green
-        Write-Host "  Azure SQL Data Sync Health Checker v6.22 Results" -ForegroundColor Green
+        Write-Host "  Azure SQL Data Sync Health Checker v6.23 Results" -ForegroundColor Green
         Write-Host ************************************************************ -ForegroundColor Green
         Write-Host
         Write-Host "Configuration:" -ForegroundColor Green
