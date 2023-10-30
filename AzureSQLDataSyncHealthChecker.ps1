@@ -497,6 +497,74 @@ function ValidateTrigger([String] $trigger) {
             else {
                 Write-Host "Trigger" $trigger "exists and is enabled." -Foreground Green
             }
+
+			$query = "sp_helptext '" + $trigger + "'"
+            $MemberCommand.CommandText = $query
+            $result = $MemberCommand.ExecuteReader()
+            $sphelptextDataTable = new-object 'System.Data.DataTable'
+            $sphelptextDataTable.Load($result)
+
+            #DumpObject
+            $tableNameWithoutSchema = ($DumpMetadataObjectsForTable.Replace("[", "").Replace("]", "").Split('.'))[1] + '_dss'
+            if ($DumpMetadataObjectsForTable -and ($SP.IndexOf($tableNameWithoutSchema) -ne -1)) {
+                $xmlResult = $sphelptextDataTable.Text
+                if ($xmlResult -and $canWriteFiles) {
+                    $xmlResult | Out-File -filepath ('.\' + (SanitizeString $Server) + '_' + (SanitizeString $Database) + '_' + (SanitizeString $trigger) + '.txt')
+                }
+            }
+
+            #orphan trigger validations
+            $objectId = ([string[]] $sphelptextDataTable.Text) | Where-Object { $_ -match 'object_id' } | Select-Object -First 1
+
+            if ($objectId) {
+                $objectId = $objectId.Replace('WHERE [object_id] =', '').Trim()
+
+                $query = "select COUNT(object_id) as C from sys.tables where object_id = " + $objectId
+                $MemberCommand.CommandText = $query
+                $result = $MemberCommand.ExecuteReader()
+                $datatable = new-object 'System.Data.DataTable'
+                $datatable.Load($result)
+                if ($datatable.Rows[0].C -eq 0) {
+                    $msg = "WARNING: Table with object_id " + $objectId + " was not found, " + $trigger + " was provisoned using this object_id!"
+                    Write-Host $msg -Foreground Red
+                    [void]$errorSummary.AppendLine($msg)
+                }
+                else {
+                    $msg = " - Found table with object_id " + $objectId
+                    Write-Host $msg -Foreground Green
+                }
+
+                $query = "SELECT [owner_scope_local_id] FROM [DataSync].[provision_marker_dss] WHERE object_id = " + $objectId
+                $MemberCommand.CommandText = $query
+                $result = $MemberCommand.ExecuteReader()
+                $datatable = new-object 'System.Data.DataTable'
+                $datatable.Load($result)
+
+                if ($datatable.Rows | Where-Object { $_.owner_scope_local_id -eq 0 }) {
+                    $msg = " - Found owner_scope_local_id 0 for object_id " + $objectId
+                    Write-Host $msg -Foreground Green
+                }
+                else {
+                    $msg = "WARNING: owner_scope_local_id 0 was not found for object_id " + $objectId
+                    Write-Host $msg -Foreground Red
+                    [void]$errorSummary.AppendLine($msg)
+                }
+
+                $owner_scope_local_id = ([string[]] $sphelptextDataTable.Text) | Where-Object { $_ -match 'owner_scope_local_id' -and $_ -notmatch '0' }
+                if ($owner_scope_local_id) {
+                    $owner_scope_local_id = $owner_scope_local_id.Replace('AND [owner_scope_local_id] =', '').Trim()
+
+                    if ($datatable.Rows | Where-Object { $_.owner_scope_local_id -eq $owner_scope_local_id }) {
+                        $msg = " - Found owner_scope_local_id " + $owner_scope_local_id + " for object_id " + $objectId
+                        Write-Host $msg -Foreground Green
+                    }
+                    else {
+                        $msg = "WARNING: owner_scope_local_id " + $owner_scope_local_id + " was not found for object_id " + $objectId
+                        Write-Host $msg -Foreground Red
+                        [void]$errorSummary.AppendLine($msg)
+                    }
+                }
+            }
         }
 
         if ($count -eq 0) {
@@ -1362,7 +1430,7 @@ function SendAnonymousUsageData {
             | Add-Member -PassThru NoteProperty baseType 'EventData' `
             | Add-Member -PassThru NoteProperty baseData (New-Object PSObject `
                 | Add-Member -PassThru NoteProperty ver 2 `
-                | Add-Member -PassThru NoteProperty name '6.23' `
+                | Add-Member -PassThru NoteProperty name '6.24' `
                 | Add-Member -PassThru NoteProperty properties (New-Object PSObject `
                     | Add-Member -PassThru NoteProperty 'Source:' "Microsoft/AzureSQLDataSyncHealthChecker"`
                     | Add-Member -PassThru NoteProperty 'HealthChecksEnabled' $HealthChecksEnabled.ToString()`
@@ -2517,7 +2585,7 @@ Try {
 
     Try {
         Write-Host ************************************************************ -ForegroundColor Green
-        Write-Host "  Azure SQL Data Sync Health Checker v6.23 Results" -ForegroundColor Green
+        Write-Host "  Azure SQL Data Sync Health Checker v6.24 Results" -ForegroundColor Green
         Write-Host ************************************************************ -ForegroundColor Green
         Write-Host
         Write-Host "Configuration:" -ForegroundColor Green
