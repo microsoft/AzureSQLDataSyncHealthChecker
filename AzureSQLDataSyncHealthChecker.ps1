@@ -498,7 +498,7 @@ function ValidateTrigger([String] $trigger) {
                 Write-Host "Trigger" $trigger "exists and is enabled." -Foreground Green
             }
 
-			$query = "sp_helptext '" + $trigger + "'"
+	    $query = "sp_helptext '" + $trigger + "'"
             $MemberCommand.CommandText = $query
             $result = $MemberCommand.ExecuteReader()
             $sphelptextDataTable = new-object 'System.Data.DataTable'
